@@ -71,7 +71,7 @@ def monitor_system(bd, idMaquina, interval=10000):
         inserirDados(disco, idMaquina, 3, bd)
         inserirDados(bytesRecebidos, idMaquina, 4,bd)
         inserirDados(bytesEnviados, idMaquina, 5,bd)
-        time.sleep(interval)
+        time.sleep(interval/ 10000)
 
 def main():
     idMaquina = os.getenv(idMaquina_key)
