@@ -49,17 +49,15 @@ def receberRede():
     return byrecebidos, byenviados
 
 def inserirDados(dado, fkMaquina, fkRecurso, bd):
-    try:
-        with bd.cursor() as cursor:
+     with bd.cursor() as cursor:
             informar = (
                 "INSERT INTO dado_capturado (registro, fkMaquina, fkRecurso) "
                 "VALUES (%s, %s, %s)"
             )
-            valores = [dado, fkMaquina, fkRecurso]
-            cursor.execute(informar, valores)
-            bd.commit()
-    except Exception as e:
-        print(f"Erro ao inserir dados: {e}")
+        valores = [dado, fkMaquina, fkRecurso]
+        cursor.execute(informar, valores)
+        bd.commit()
+        cursor.close()
         
 
 def monitor_system(bd, idMaquina, interval=5):
@@ -68,7 +66,7 @@ def monitor_system(bd, idMaquina, interval=5):
         cpu = receberCpu()
         disco = receberDisco()
         ram = receberRam()
-        inserirDados(cpu, idMaquina, 1, bd)
+        inserirDados(cpu,idMaquina, 1, bd)
         inserirDados(ram, idMaquina, 2, bd)
         inserirDados(disco, idMaquina, 3, bd)
         inserirDados(bytesRecebidos, idMaquina, 4,bd)
