@@ -60,7 +60,7 @@ def inserirDados(dado, fkMaquina, fkRecurso, bd):
         cursor.close()
         
 
-def monitor_system(bd, idMaquina, interval=5000):
+def monitor_system(bd, idMaquina, interval=10000):
     while True:
         bytesRecebidos, bytesEnviados = receberRede()
         cpu = receberCpu()
