@@ -49,13 +49,17 @@ def receberRede():
     return byrecebidos, byenviados
 
 def inserirDados(dado, fkMaquina, fkRecurso, bd):
-    with bd.cursor() as cursor:
-        informar = ("INSERT INTO dado_capturado (registro, fkMaquina, fkRecurso)" + 
-                    "VALUES (%s,%s,%s)")
-        valores = [dado, fkMaquina, fkRecurso]
-        cursor.execute(informar, valores)
-        bd.commit()
-        cursor.close()
+    try:
+        with bd.cursor() as cursor:
+            informar = (
+                "INSERT INTO dado_capturado (registro, fkMaquina, fkRecurso) "
+                "VALUES (%s, %s, %s)"
+            )
+            valores = [dado, fkMaquina, fkRecurso]
+            cursor.execute(informar, valores)
+            bd.commit()
+    except Exception as e:
+        print(f"Erro ao inserir dados: {e}")
         
 
 def monitor_system(bd, idMaquina, interval=5):
