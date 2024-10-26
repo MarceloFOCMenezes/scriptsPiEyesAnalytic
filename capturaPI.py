@@ -60,18 +60,19 @@ def inserirDados(dado, fkMaquina, fkRecurso, bd):
         cursor.close()
         
 
-def monitor_system(bd, idMaquina, interval=10000):
+def monitor_system(bd, idMaquina, interval=10):
     while True:
         bytesRecebidos, bytesEnviados = receberRede()
         cpu = receberCpu()
         disco = receberDisco()
         ram = receberRam()
-        inserirDados(cpu,idMaquina, 1, bd)
+        inserirDados(cpu, idMaquina, 1, bd)
         inserirDados(ram, idMaquina, 2, bd)
         inserirDados(disco, idMaquina, 3, bd)
-        inserirDados(bytesRecebidos, idMaquina, 4,bd)
-        inserirDados(bytesEnviados, idMaquina, 5,bd)
-        time.sleep(interval/ 10000)
+        inserirDados(bytesRecebidos, idMaquina, 4, bd)
+        inserirDados(bytesEnviados, idMaquina, 5, bd)
+        time.sleep(interval)  # Intervalo definido em segundos
+
 
 def main():
     idMaquina = os.getenv(idMaquina_key)
