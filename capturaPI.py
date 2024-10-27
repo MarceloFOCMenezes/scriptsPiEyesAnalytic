@@ -20,10 +20,10 @@ def configurarBanco():
         db = connect(**config)
         if db.is_connected():
             db_info = db.get_server_info()
-            print ("Connected to MySQL server version -", db_info)
-            return db                                                                                                   
+            print("Connected to MySQL server version -", db_info)
+            return db
     except Error as e:
-        print("Error to conect with MySQL -", e)
+        print("Error to connect with MySQL -", e)
         return None
 
 def receberRam():
@@ -34,31 +34,28 @@ def receberRam():
 def receberDisco():
     disk = psutil.disk_usage('/')
     print(f"Uso de Disco: {disk.percent}% ({disk.used / (1024 ** 3):.2f} GB)")
-    porcentagem = disk.percent
-    return porcentagem
+    return disk.percent
 
 def receberCpu():
     cpu_percent = psutil.cpu_percent()
-    print(f"Uso Total da CPU: {cpu_percent}%") 
+    print(f"Uso Total da CPU: {cpu_percent}%")
     return cpu_percent
 
 def receberRede():
-    net = psutil. net_io_counters()
+    net = psutil.net_io_counters()
     byrecebidos = net.bytes_recv
     byenviados = net.bytes_sent
     return byrecebidos, byenviados
 
 def inserirDados(dado, fkMaquina, fkRecurso, bd):
-     with bd.cursor() as cursor:
-            informar = (
-                "INSERT INTO dado_capturado (registro, fkMaquina, fkRecurso) "
-                "VALUES (%s, %s, %s)"
-            )
+    with bd.cursor() as cursor:
+        informar = (
+            "INSERT INTO dado_capturado (registro, fkMaquina, fkRecurso) "
+            "VALUES (%s, %s, %s)"
+        )
         valores = [dado, fkMaquina, fkRecurso]
         cursor.execute(informar, valores)
         bd.commit()
-        cursor.close()
-        
 
 def monitor_system(bd, idMaquina, interval=10):
     while True:
@@ -71,24 +68,21 @@ def monitor_system(bd, idMaquina, interval=10):
         inserirDados(disco, idMaquina, 3, bd)
         inserirDados(bytesRecebidos, idMaquina, 4, bd)
         inserirDados(bytesEnviados, idMaquina, 5, bd)
-        time.sleep(interval)  # Intervalo definido em segundos
-
+        time.sleep(interval)  # Intervalo em segundos
 
 def main():
     idMaquina = os.getenv(idMaquina_key)
-    if idMaquina != None:
+    if idMaquina is not None:
         print(f"Id da Máquina: {idMaquina}")
         bd = configurarBanco()
-
+        
         if bd is None:
             print("Não foi possível conectar ao banco")
             return
         else:
             monitor_system(bd, idMaquina)
     else:
-        print("Maquina não cadastrada!")
-
-
+        print("Máquina não cadastrada!")
 
 if __name__ == "__main__":
     main()
