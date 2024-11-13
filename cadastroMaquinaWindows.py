@@ -5,15 +5,16 @@ import cpuinfo
 import psutil
 import subprocess
 import socket
+import wmi as w 
 import requests
 import json
 
-# URL do Webhook do Slack
+wmi = w.WMI()
 
 
 load_dotenv()
 
-
+url = 'https://hooks.slack.com/services/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'
 caminhoEnv = '.env'
 idEmpresa_key = 'ID_EMPRESA'
 idMaquina_key = 'ID_MAQUINA'
@@ -37,9 +38,10 @@ def configurarBanco():
     
 def selectIdEmpresa(db, codigoSeguranca):
     with db.cursor() as cursor:
-        resultado = cursor.execute(f"SELECT idEmpresa FROM empresa WHERE codSeg = {codigoSeguranca}")
+        resultado = cursor.execute(f"SELECT idEmpresa,razaoSocial FROM empresa WHERE codSeg = {codigoSeguranca}")
         empresaId = cursor.fetchall()
         if(len(empresaId) > 0):
+            print(f"Empresa: {empresaId[0][1]}")
             resultadoEmpresaId = empresaId[0]
             set_key(caminhoEnv,idEmpresa_key,str(resultadoEmpresaId[0]))
             return resultadoEmpresaId[0]
@@ -54,7 +56,7 @@ def cadastrarMaquina(db,nomeMaquina, EmpresaId):
         qtdMaquinaRaw = cursor.fetchall()
         idMaquina = (qtdMaquinaRaw[0])[0]
         query= ("INSERT INTO maquina (idMaquina, nomeMaquina, situacao, fkEmpresa, fkPrioridade) VALUES" +
-                "(%s, %s, 'ativa', %s, 3)")
+                "(%s, %s, 'Ativo', %s, 3)")
         valor = [idMaquina+1, nomeMaquina ,EmpresaId]
 
         cursor.execute(query, valor)
@@ -86,56 +88,6 @@ def informar(db, valorAtributo, idVinculado, idAtributo):
         db.commit()
         cursor.close()
 
-def obterInformacaoRam():
-    comando = "sudo dmidecode --type memory"
-    fabricantes = []
-    tamanhos = []
-    velocidades = []
-    
-    try:
-        resultado = subprocess.check_output(comando, shell=True, text=True)
-
-        fabricante_atual = None
-        tamanho_atual = None
-        velocidade_atual = None
-
-        for linha in resultado.splitlines():
-            if "Manufacturer" in linha:
-                fabricante_atual = linha.split(":")[1].strip()
-                fabricantes.append(fabricante_atual)
-            elif "Size" in linha and "MB" in linha:
-                tamanho_atual = linha.split(":")[1].strip()
-                tamanhos.append(tamanho_atual)
-            elif "Speed" in linha:
-                velocidade_atual = linha.split(":")[1].strip()
-                velocidades.append(velocidade_atual)
-
-        return fabricantes, tamanhos, velocidades
-
-    except subprocess.CalledProcessError as e:
-        print("Erro ao obter informações da RAM:", e)
-        return None, None, None
-
-def obterInformacaoDisco():                                                     
-    comando = "lsblk -o NAME,SIZE,MODEL,TYPE"
-    try:
-        resultado = subprocess.check_output(comando, shell=True, text=True)
-        discos = []
-        for linha in resultado.splitlines()[1:]:
-            colunas = linha.split()
-            if len(colunas) >= 3:
-                nome = colunas[0]
-                tamanho = colunas[1][:-1]
-                modelo = ' '.join(colunas[2:-1])
-                discos.append({
-                    'nome': nome,
-                    'tamanho': tamanho,
-                    'modelo': modelo,
-                })
-                return discos
-    except subprocess.CalledProcessError as e:
-        print("Erro ao obter informações do disco:", e)
-        return None
 
 def cadastrarCpu(db, MaquinaId):
     processador = cpuinfo.get_cpu_info()
@@ -154,32 +106,33 @@ def cadastrarCpu(db, MaquinaId):
     informar( db, threads, idVinculado, 4)
 
 def cadastrarRam(db, MaquinaId):
+        ram = wmi.Win32_PhysicalMemory()
+        for r in ram:
+            capacidade = int(r.Capacity)/(1024**3)
+            velocidade = r.speed
+            fabricante = r.Manufacturer if hasattr(r, 'Manufacturer') else "Desconhecido"
     
-    fabricantes, capacidade, velocidade = obterInformacaoRam()
-
-    for fabricante, capacidade, velocidade in zip(fabricantes,capacidade,velocidade):
         idVinculado =  vincular(db, MaquinaId, 2)
         informar( db, fabricante, idVinculado, 1)
         informar( db, velocidade, idVinculado, 3)
         informar( db, capacidade, idVinculado, 6)
 
 def cadastrarDisco(db, MaquinaId):
-    disco = obterInformacaoDisco()
+    disco =  wmi.Win32_LogicalDisk()
     for d in disco:
-        fabricante = d['nome']
-        modelo = d['modelo']
-        capacidade  = d['tamanho']
+        fabricante = d.Manufacturer if hasattr(d, 'Manufacturer') else "Desconhecido"
+        modelo = getattr(d, 'Model', 'Modelo Desconhecido')
+        capacidade  =  int(d.Size) / (1024**3)
         idVinculado =  vincular(db, MaquinaId, 3)
         informar( db, fabricante, idVinculado, 1)
         informar( db, modelo, idVinculado, 2)
-        informar( db, capacidade, idVinculado, 6)
+        informar( db, round(capacidade,2), idVinculado, 6)
 
 def cadastrarRecursoRede(db, idMaquina):
     vincular(db, idMaquina, 4)
     vincular(db, idMaquina, 5)
     vincular(db, idMaquina, 6)
     vincular(db, idMaquina, 7)
-    vincular(db, idMaquina, 8)
 
 def main():
     EmpresaId = os.getenv(idEmpresa_key)
@@ -200,6 +153,18 @@ def main():
                 cadastrarRam(db, idMaquina)              
                 cadastrarDisco(db, idMaquina)
                 cadastrarRecursoRede(db, idMaquina)
+                payload = {
+    "text": "Nova máquina adicionada! 🖥️",
+    "username": "Bot de Alerta",  # Nome que aparecerá como remetente da mensagem
+    "icon_emoji": ":robot_face:",  # Emoji do bot
+}
+                response = requests.post(url, data=json.dumps(payload), headers={'Content-Type': 'application/json'})
+# Verificar se a requisição foi bem-sucedida
+                if response.status_code == 200:
+                    print("Mensagem enviada com sucesso!")
+                else:
+                    print(f"Falha ao enviar mensagem. Status Code: {response.status_code}")
+
         db.close()           
     else:
         print("Maquina ja cadastrada.")
