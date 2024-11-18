@@ -3,18 +3,21 @@ from mysql.connector import connect, Error
 from dotenv import load_dotenv, set_key
 import cpuinfo
 import psutil
-import subprocess
 import socket
 import wmi as w 
 import requests
 import json
+
+
+
+
 
 wmi = w.WMI()
 
 
 load_dotenv()
 
-url = 'https://hooks.slack.com/services/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'
+url = 'https://hooks.slack.com/services/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'
 caminhoEnv = '.env'
 idEmpresa_key = 'ID_EMPRESA'
 idMaquina_key = 'ID_MAQUINA'
@@ -133,6 +136,8 @@ def cadastrarRecursoRede(db, idMaquina):
     vincular(db, idMaquina, 5)
     vincular(db, idMaquina, 6)
     vincular(db, idMaquina, 7)
+    vincular(db, idMaquina, 8)
+    vincular(db, idMaquina, 9)
 
 def main():
     EmpresaId = os.getenv(idEmpresa_key)
