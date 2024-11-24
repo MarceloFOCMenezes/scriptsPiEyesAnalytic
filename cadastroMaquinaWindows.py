@@ -17,7 +17,7 @@ wmi = w.WMI()
 
 load_dotenv()
 
-url = 'https://hooks.slack.com/services/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'
+url = 'https://hooks.slack.com/services/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'
 caminhoEnv = '.env'
 idEmpresa_key = 'ID_EMPRESA'
 idMaquina_key = 'ID_MAQUINA'

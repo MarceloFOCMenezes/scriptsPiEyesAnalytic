@@ -11,7 +11,7 @@ import socket
 
 load_dotenv()
 
-url = 'https://hooks.slack.com/services/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'
+url = 'https://hooks.slack.com/services/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'
 
 caminhoEnv = '.env'
 idMaquina_key = 'ID_MAQUINA'
@@ -37,6 +37,7 @@ def configurarBanco():
 def receberConexoes():
     conex = psutil.net_connections(kind = 'inet')
     conex_atv = [conn for conn in conex if conn.status == 'ESTABLISHED']
+    print(f"Conexoes Ativas: {len(conex_atv)}")
     return len(conex_atv)
 
 def receberRam():
@@ -56,9 +57,13 @@ def receberCpu():
 
 def receberRede():
     net = psutil.net_io_counters()
+    pacotesrecebidos = net.packets_recv
+    pacotesenviados = net.packets_sent
     byrecebidos = net.bytes_recv
     byenviados = net.bytes_sent
-    return byrecebidos, byenviados
+    print(f"Pacotes Recebidos:{pacotesrecebidos} \nPacotes Enviados:{pacotesenviados} \nBytes Recebidos:{byrecebidos} \nBytes Enviados:{byenviados}")
+    return byrecebidos, byenviados, pacotesrecebidos, pacotesenviados
+
 
 def obter_ip_local():
     try: 
@@ -130,7 +135,7 @@ def inserir_ip(bd, idMaquina):
 def monitor_system(bd, idMaquina,idEmpresa, interval=10):
     inserir_ip(bd, idMaquina)
     while True:
-        bytesRecebidos, bytesEnviados = receberRede()
+        bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados = receberRede()
         latencia = medir_latencia()
         cpu = receberCpu()
         disco = receberDisco()
@@ -141,6 +146,8 @@ def monitor_system(bd, idMaquina,idEmpresa, interval=10):
         inserirDados(idEmpresa,disco, idMaquina, 3, bd)
         inserirDados(idEmpresa,bytesRecebidos, idMaquina, 4, bd)
         inserirDados(idEmpresa,bytesEnviados, idMaquina, 5, bd)
+        inserirDados(idEmpresa,pacotesEnviados, idMaquina, 6, bd)
+        inserirDados(idEmpresa,pacotesRecebidos, idMaquina, 7, bd)
         inserirDados(idEmpresa, conexoes, idMaquina,8, bd)
         inserirDados(idEmpresa, latencia, idMaquina, 9, bd)
         
