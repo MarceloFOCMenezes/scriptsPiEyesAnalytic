@@ -11,8 +11,7 @@ import socket
 
 load_dotenv()
 
-url = 'https://hooks.slack.com/services/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'
-
+url = os.getenv('URL')
 caminhoEnv = '.env'
 idMaquina_key = 'ID_MAQUINA'
 idEmpresa_key = 'ID_EMPRESA'
