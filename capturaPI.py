@@ -23,6 +23,10 @@ config = {
     'database': os.getenv('DB_NAME')
 }
 
+# Arquivo para salvar estado
+STATE_FILE = "network_state.json"
+
+
 def configurarBanco():
     try:
         db = connect(**config)
@@ -57,13 +61,31 @@ def receberCpu():
 
 def receberRede():
     net = psutil.net_io_counters()
-    pacotesrecebidos = net.packets_recv
-    pacotesenviados = net.packets_sent
-    byrecebidos = net.bytes_recv
-    byenviados = net.bytes_sent
-    print(f"Pacotes Recebidos:{pacotesrecebidos} \nPacotes Enviados:{pacotesenviados} \nBytes Recebidos:{byrecebidos} \nBytes Enviados:{byenviados}")
-    return byrecebidos, byenviados, pacotesrecebidos, pacotesenviados
+    bytesRecebidos = net.bytes_recv / 1e+6  # Convertendo para MB
+    bytesEnviados = net.bytes_sent / 1e+6 # Convertendo para MB
+    pacotesRecebidos = net.packets_recv
+    pacotesEnviados = net.packets_sent
+    return bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados
 
+def carregarEstado():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as file:
+            return json.load(file)
+    return None
+
+
+def salvarEstado(bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados):
+    estado = {
+        "bytesRecebidos": bytesRecebidos,
+        "bytesEnviados": bytesEnviados,
+        "pacotesRecebidos": pacotesRecebidos,
+        "pacotesEnviados": pacotesEnviados
+    }
+    with open(STATE_FILE, "w") as file:
+        json.dump(estado, file)
+
+def calcularDiferencas(atual, anterior):
+    return max(atual - anterior, 0)  # Garantir que a diferença não seja negativa
 
 def obter_ip_local():
     try: 
@@ -133,9 +155,43 @@ def inserir_ip(bd, idMaquina):
         
 
 def monitor_system(bd, idMaquina,idEmpresa, interval=10):
+    estado = carregarEstado()
     inserir_ip(bd, idMaquina)
+
+    if estado:
+        prev_bytesRecebidos = estado["bytesRecebidos"]
+        prev_bytesEnviados = estado["bytesEnviados"]
+        prev_pacotesRecebidos = estado["pacotesRecebidos"]
+        prev_pacotesEnviados = estado["pacotesEnviados"]
+    else:
+        # Primeira execução: inicializa estado com os valores capturados
+        prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados = receberRede()
+        salvarEstado(prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados)
+        
     while True:
         bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados = receberRede()
+
+        # Calcula diferenças
+        diff_bytesRecebidos = calcularDiferencas(bytesRecebidos, prev_bytesRecebidos)
+        diff_bytesEnviados = calcularDiferencas(bytesEnviados, prev_bytesEnviados)
+        diff_pacotesRecebidos = calcularDiferencas(pacotesRecebidos, prev_pacotesRecebidos)
+        diff_pacotesEnviados = calcularDiferencas(pacotesEnviados, prev_pacotesEnviados)
+
+        # Calcula pacotes perdidos
+        if diff_pacotesEnviados > 0:
+            pacotesPerdidos = max((diff_pacotesEnviados - diff_pacotesRecebidos) / diff_pacotesEnviados * 100, 0)
+        else:
+            pacotesPerdidos = 0
+
+        # Atualiza os valores anteriores
+        prev_bytesRecebidos = bytesRecebidos
+        prev_bytesEnviados = bytesEnviados
+        prev_pacotesRecebidos = pacotesRecebidos
+        prev_pacotesEnviados = pacotesEnviados
+
+        # Salva o estado atual
+        salvarEstado(prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados)
+        
         latencia = medir_latencia()
         cpu = receberCpu()
         disco = receberDisco()
@@ -144,19 +200,20 @@ def monitor_system(bd, idMaquina,idEmpresa, interval=10):
         inserirDados(idEmpresa,cpu, idMaquina, 1, bd)
         inserirDados(idEmpresa,ram, idMaquina, 2, bd)
         inserirDados(idEmpresa,disco, idMaquina, 3, bd)
-        inserirDados(idEmpresa,bytesRecebidos, idMaquina, 4, bd)
-        inserirDados(idEmpresa,bytesEnviados, idMaquina, 5, bd)
-        inserirDados(idEmpresa,pacotesEnviados, idMaquina, 6, bd)
-        inserirDados(idEmpresa,pacotesRecebidos, idMaquina, 7, bd)
+        inserirDados(idEmpresa, diff_bytesRecebidos, idMaquina, 4, bd)
+        inserirDados(idEmpresa, diff_bytesEnviados, idMaquina, 5, bd)
+        inserirDados(idEmpresa, diff_pacotesEnviados, idMaquina, 6, bd)
+        inserirDados(idEmpresa, diff_pacotesRecebidos, idMaquina, 7, bd)
         inserirDados(idEmpresa, conexoes, idMaquina,8, bd)
         inserirDados(idEmpresa, latencia, idMaquina, 9, bd)
+        inserirDados(idEmpresa, pacotesPerdidos, idMaquina, 10, bd)
         
         time.sleep(interval)  # Intervalo em segundos
 
 def main():
     idMaquina = os.getenv(idMaquina_key)
     idEmpresa = os.getenv(idEmpresa_key)
-    if idMaquina is not None:
+    if idMaquina is not None:   
         print(f"Id da Máquina: {idMaquina}")
         bd = configurarBanco()
         
