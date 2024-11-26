@@ -166,48 +166,65 @@ def monitor_system(bd, idMaquina,idEmpresa, interval=10):
         # Primeira execução: inicializa estado com os valores capturados
         prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados = receberRede()
         salvarEstado(prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados)
-        
+
+    # Inicializa os tempos para os intervalos
+    last_network_time = time.time()
+    last_system_time = time.time()
+
     while True:
-        bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados = receberRede()
+        current_time = time.time()
 
-        # Calcula diferenças
-        diff_bytesRecebidos = calcularDiferencas(bytesRecebidos, prev_bytesRecebidos)
-        diff_bytesEnviados = calcularDiferencas(bytesEnviados, prev_bytesEnviados)
-        diff_pacotesRecebidos = calcularDiferencas(pacotesRecebidos, prev_pacotesRecebidos)
-        diff_pacotesEnviados = calcularDiferencas(pacotesEnviados, prev_pacotesEnviados)
+        # Atualizar dados de rede (a cada 2 segundos)
+        if current_time - last_network_time >= 2:
+            bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados = receberRede()
 
-        # Calcula pacotes perdidos
-        if diff_pacotesEnviados > 0:
-            pacotesPerdidos = max((diff_pacotesEnviados - diff_pacotesRecebidos) / diff_pacotesEnviados * 100, 0)
-        else:
-            pacotesPerdidos = 0
+            # Calcula diferenças
+            diff_bytesRecebidos = calcularDiferencas(bytesRecebidos, prev_bytesRecebidos)
+            diff_bytesEnviados = calcularDiferencas(bytesEnviados, prev_bytesEnviados)
+            diff_pacotesRecebidos = calcularDiferencas(pacotesRecebidos, prev_pacotesRecebidos)
+            diff_pacotesEnviados = calcularDiferencas(pacotesEnviados, prev_pacotesEnviados)
 
-        # Atualiza os valores anteriores
-        prev_bytesRecebidos = bytesRecebidos
-        prev_bytesEnviados = bytesEnviados
-        prev_pacotesRecebidos = pacotesRecebidos
-        prev_pacotesEnviados = pacotesEnviados
+            # Calcula pacotes perdidos
+            if diff_pacotesEnviados > 0:
+                pacotesPerdidos = max((diff_pacotesEnviados - diff_pacotesRecebidos) / diff_pacotesEnviados * 100, 0)
+            else:
+                pacotesPerdidos = 0
 
-        # Salva o estado atual
-        salvarEstado(prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados)
+            # Atualiza os valores anteriores
+            prev_bytesRecebidos = bytesRecebidos
+            prev_bytesEnviados = bytesEnviados
+            prev_pacotesRecebidos = pacotesRecebidos
+            prev_pacotesEnviados = pacotesEnviados
+
+            # Salva o estado atual
+            salvarEstado(prev_bytesRecebidos, prev_bytesEnviados, prev_pacotesRecebidos, prev_pacotesEnviados)
+
+            # Inserir dados de rede no banco
+            inserirDados(idEmpresa, diff_bytesRecebidos, idMaquina, 4, bd)
+            inserirDados(idEmpresa, diff_bytesEnviados, idMaquina, 5, bd)
+            inserirDados(idEmpresa, diff_pacotesEnviados, idMaquina, 6, bd)
+            inserirDados(idEmpresa, diff_pacotesRecebidos, idMaquina, 7, bd)
+            inserirDados(idEmpresa, pacotesPerdidos, idMaquina, 10, bd)
+
+            last_network_time = current_time
+
+        # Atualizar outros dados do sistema (a cada 10 segundos)
+        if current_time - last_system_time >= 10:
+            latencia = medir_latencia()
+            cpu = receberCpu()
+            disco = receberDisco()
+            ram = receberRam()
+            conexoes = receberConexoes()
+
+            inserirDados(idEmpresa, cpu, idMaquina, 1, bd)
+            inserirDados(idEmpresa, ram, idMaquina, 2, bd)
+            inserirDados(idEmpresa, disco, idMaquina, 3, bd)
+            inserirDados(idEmpresa, conexoes, idMaquina, 8, bd)
+            inserirDados(idEmpresa, latencia, idMaquina, 9, bd)
+
+            last_system_time = current_time
         
-        latencia = medir_latencia()
-        cpu = receberCpu()
-        disco = receberDisco()
-        ram = receberRam()
-        conexoes = receberConexoes()
-        inserirDados(idEmpresa,cpu, idMaquina, 1, bd)
-        inserirDados(idEmpresa,ram, idMaquina, 2, bd)
-        inserirDados(idEmpresa,disco, idMaquina, 3, bd)
-        inserirDados(idEmpresa, diff_bytesRecebidos, idMaquina, 4, bd)
-        inserirDados(idEmpresa, diff_bytesEnviados, idMaquina, 5, bd)
-        inserirDados(idEmpresa, diff_pacotesEnviados, idMaquina, 6, bd)
-        inserirDados(idEmpresa, diff_pacotesRecebidos, idMaquina, 7, bd)
-        inserirDados(idEmpresa, conexoes, idMaquina,8, bd)
-        inserirDados(idEmpresa, latencia, idMaquina, 9, bd)
-        inserirDados(idEmpresa, pacotesPerdidos, idMaquina, 10, bd)
-        
-        time.sleep(interval)  # Intervalo em segundos
+        time.sleep(0.5)  # Pequeno intervalo para evitar uso excessivo da CPU
 
 def main():
     idMaquina = os.getenv(idMaquina_key)
