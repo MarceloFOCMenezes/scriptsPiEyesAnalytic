@@ -60,8 +60,8 @@ def receberCpu():
 
 def receberRede():
     net = psutil.net_io_counters()
-    bytesRecebidos = net.bytes_recv / 1e+6  # Convertendo para MB
-    bytesEnviados = net.bytes_sent / 1e+6 # Convertendo para MB
+    bytesRecebidos = net.bytes_recv / 1000  # Convertendo para kB
+    bytesEnviados = net.bytes_sent / 1000 # Convertendo para kB
     pacotesRecebidos = net.packets_recv
     pacotesEnviados = net.packets_sent
     return bytesRecebidos, bytesEnviados, pacotesRecebidos, pacotesEnviados
